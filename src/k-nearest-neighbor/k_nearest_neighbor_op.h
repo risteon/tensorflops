@@ -28,16 +28,41 @@
 
 template <typename Device>
 struct KNNFunctor {
-  void operator()(const Device& d, int size, const float* in, std::int32_t* out);
+  void operator()(const Device& d,
+                  const float * ref,
+                  int           ref_nb,
+                  const float * query,
+                  int           query_nb,
+                  int           dim,
+                  int           k,
+                  float *       knn_dist,
+                  int *         knn_index);
 };
 
 #if GOOGLE_CUDA
 // Partially specialize functor for GpuDevice.
-template <typename Eigen::GpuDevice, typename T>
-struct KNNFunctor {
-  void operator()(const Eigen::GpuDevice& d, int size, const T* in, T* out);
+template <>
+struct KNNFunctor<Eigen::GpuDevice> {
+  void operator()(const Eigen::GpuDevice& d,
+                  const float * ref,
+                  int           ref_nb,
+                  const float * query,
+                  int           query_nb,
+                  int           dim,
+                  int           k,
+                  float *       knn_dist,
+                  int *         knn_index);
 };
 #endif
+
+bool knn_cuda_tf(const float * ref,
+                 int           ref_nb,
+                 const float * query,
+                 int           query_nb,
+                 int           dim,
+                 int           k,
+                 float *       knn_dist,
+                 int *         knn_index);
 
 
 /**
@@ -84,30 +109,6 @@ bool knn_cuda_texture(const float * ref,
                       int           k,
                       float *       knn_dist,
                       int *         knn_index);
-
-
-/**
- * For each input query point, locates the k-NN (indexes and distances) among the reference points.
- * Using cuBLAS, the computation of the distance matrix can be faster in some cases than other
- * implementations despite being more complex.
- *
- * @param ref        refence points
- * @param ref_nb     number of reference points
- * @param query      query points
- * @param query_nb   number of query points
- * @param dim        dimension of points
- * @param k          number of neighbors to consider
- * @param knn_dist   output array containing the query_nb x k distances
- * @param knn_index  output array containing the query_nb x k indexes
- */
-bool knn_cublas(const float * ref,
-                int           ref_nb,
-                const float * query,
-                int           query_nb,
-                int           dim,
-                int           k,
-                float *       knn_dist,
-                int *         knn_index);
 
 
 # endif //< K_NEAREST_NEIGHBOR_OP_H

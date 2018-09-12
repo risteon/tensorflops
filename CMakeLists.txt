@@ -52,6 +52,10 @@ set(CXX_GCC_COMPILE_OPTIONS
   "-Wall"
   "-Wno-unknown-pragmas"
   )
+set(CUDA_CXX_COMPILE_OPTIONS
+  "-march=native"
+  "-std=c++11"
+  )
 
 # -------- FIND DEPENDENCIES WITH CMAKE CONVENTIONS --------
 # -------- --------- REQUIRED DEPENDENCIES -------- --------
