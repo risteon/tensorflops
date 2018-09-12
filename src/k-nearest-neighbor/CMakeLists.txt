@@ -3,7 +3,7 @@
 find_package(CUDA 9 REQUIRED)
 
 #SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${CUDA_CXX_COMPILE_OPTIONS}")
-set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++11 --expt-relaxed-constexpr -D GOOGLE_CUDA=1 --gpu-architecture=sm_52")
+set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -G -g -std=c++11 --expt-relaxed-constexpr -D GOOGLE_CUDA=1 --gpu-architecture=sm_61 -D_GLIBCXX_USE_CXX11_ABI=1")
 
 message(WARNING ${CUDA_INCLUDE_DIRS})
 message(WARNING "${CUDA_INCLUDE_DIRS}/../../")

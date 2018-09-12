@@ -74,7 +74,7 @@ public:
     // n, k, d
     const auto np = input_ref.dimension(0);
     const auto n = input_query.dimension(0);
-    const auto k = context->input(1).flat<std::int32_t>()(0);
+    const auto k = context->input(2).flat<std::int32_t>()(0);
     const auto d = input_query.dimension(1);
 
     // *******************************************************
@@ -90,12 +90,12 @@ public:
     OP_REQUIRES_OK(
             context,
             context->allocate_output(
-                    0, TensorShape{{n, k}},
+                    1, TensorShape{{n, k}},
                     &ot_distances));
 
 
     auto output_indices = ot_indices->tensor<std::int32_t, 2>();
-    auto output_distances = ot_indices->tensor<float, 2>();
+    auto output_distances = ot_distances->tensor<float, 2>();
 
     // *******************************************************
     // Do the computation.
@@ -159,17 +159,17 @@ REGISTER_OP("KNearestNeighbor")
 
 
 // Register the CPU kernels.
-REGISTER_KERNEL_BUILDER(
-    Name("KNearestNeighbor")
-    .Device(DEVICE_CPU),
-    KNearestNeighborOp<CPUDevice>);
+//REGISTER_KERNEL_BUILDER(
+//    Name("KNearestNeighbor")
+//    .Device(DEVICE_CPU),
+//    KNearestNeighborOp<CPUDevice>);
 
 // Register the GPU kernels.
 #ifdef GOOGLE_CUDA
 /* Declare explicit instantiations in kernel_example.cu.cc. */
-extern template KNNFunctor<GPUDevice>;
+extern template struct KNNFunctor<GPUDevice>;
 REGISTER_KERNEL_BUILDER(
-    Name("Example").Device(DEVICE_GPU),
+    Name("KNearestNeighbor").Device(DEVICE_GPU),
     KNearestNeighborOp<GPUDevice>);
 
 #endif  // GOOGLE_CUDA

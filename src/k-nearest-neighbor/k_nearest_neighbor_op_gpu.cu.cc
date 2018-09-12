@@ -309,7 +309,8 @@ void KNNFunctor<GPUDevice>::operator()(
           int k,
           float *knn_dist,
           int *knn_index)
-  {
+{
+  printf("starting.");
     // Launch the cuda kernel.
     //
 
@@ -322,166 +323,35 @@ void KNNFunctor<GPUDevice>::operator()(
     dim3 grid0(query_nb / BLOCK_DIM, ref_nb / BLOCK_DIM, 1);
     if (query_nb % BLOCK_DIM != 0) grid0.x += 1;
     if (ref_nb % BLOCK_DIM != 0) grid0.y += 1;
-    compute_distances<<<grid0, block0>>>(ref, ref_nb, ref_nb, query, query_nb, query_nb, dim, knn_dist);
+    compute_distances<<<grid0, block0, 0, d.stream()>>>(ref, ref_nb, ref_nb, query, query_nb, query_nb, dim, knn_dist);
     if (cudaGetLastError() != cudaSuccess)
     {
       printf("ERROR: Unable to execute kernel\n");
       return;
     }
+//
+//  // Sort the distances with their respective indexes
+//  dim3 block1(256, 1, 1);
+//  dim3 grid1(query_nb / 256, 1, 1);
+//  if (query_nb % 256 != 0) grid1.x += 1;
+//  modified_insertion_sort<<<grid1, block1>>>(knn_dist, query_nb, knn_index, query_nb, query_nb, ref_nb, k);
+//  if (cudaGetLastError() != cudaSuccess) {
+//    printf("ERROR: Unable to execute kernel\n");
+//    return;
+//  }
+//
+//  // Compute the square root of the k smallest distances
+//  dim3 block2(16, 16, 1);
+//  dim3 grid2(query_nb / 16, k / 16, 1);
+//  if (query_nb % 16 != 0) grid2.x += 1;
+//  if (k % 16 != 0)        grid2.y += 1;
+//  compute_sqrt<<<grid2, block2>>>(knn_dist, query_nb, query_nb, k);
+//  if (cudaGetLastError() != cudaSuccess) {
+//    printf("ERROR: Unable to execute kernel\n");
+//    return;
+//  }
 
-  }
-
-
-bool knn_cuda_tf(const float * ref,
-                 int           ref_nb,
-                 const float * query,
-                 int           query_nb,
-                 int           dim,
-                 int           k,
-                 float *       knn_dist,
-                 int *         knn_index) {
-
-    // Constants
-    const unsigned int size_of_float = sizeof(float);
-    const unsigned int size_of_int   = sizeof(int);
-
-    // Return variables
-    cudaError_t err0, err1, err2, err3;
-
-    // Check that we have at least one CUDA device
-//    int nb_devices;
-//    err0 = cudaGetDeviceCount(&nb_devices);
-//    if (err0 != cudaSuccess || nb_devices == 0) {
-//        printf("ERROR: No CUDA device found\n");
-//        return false;
-//    }
-
-    // Select the first CUDA device as default
-//    err0 = cudaSetDevice(0);
-//    if (err0 != cudaSuccess) {
-//        printf("ERROR: Cannot set the chosen CUDA device\n");
-//        return false;
-//    }
-
-    // Allocate global memory
-    float * ref_dev   = NULL;
-    float * query_dev = NULL;
-    float * dist_dev  = NULL;
-    int   * index_dev = NULL;
-    size_t  ref_pitch_in_bytes;
-    size_t  query_pitch_in_bytes;
-    size_t  dist_pitch_in_bytes;
-    size_t  index_pitch_in_bytes;
-    // input tensor
-    err0 = cudaMallocPitch((void**)&ref_dev,   &ref_pitch_in_bytes,   ref_nb   * size_of_float, dim);
-    err1 = cudaMallocPitch((void**)&query_dev, &query_pitch_in_bytes, query_nb * size_of_float, dim);
-
-    // output tensor
-    err2 = cudaMallocPitch((void**)&dist_dev,  &dist_pitch_in_bytes,  query_nb * size_of_float, ref_nb);
-    err3 = cudaMallocPitch((void**)&index_dev, &index_pitch_in_bytes, query_nb * size_of_int,   k);
-
-    if (err0 != cudaSuccess || err1 != cudaSuccess || err2 != cudaSuccess || err3 != cudaSuccess) {
-        printf("ERROR: Memory allocation error\n");
-        cudaFree(ref_dev);
-        cudaFree(query_dev);
-        cudaFree(dist_dev);
-        cudaFree(index_dev);
-        return false;
-    }
-
-    // Deduce pitch values
-    size_t ref_pitch   = ref_pitch_in_bytes   / size_of_float;
-    size_t query_pitch = query_pitch_in_bytes / size_of_float;
-    size_t dist_pitch  = dist_pitch_in_bytes  / size_of_float;
-    size_t index_pitch = index_pitch_in_bytes / size_of_int;
-
-    // Check pitch values
-    if (query_pitch != dist_pitch || query_pitch != index_pitch) {
-        printf("ERROR: Invalid pitch value\n");
-        cudaFree(ref_dev);
-        cudaFree(query_dev);
-        cudaFree(dist_dev);
-        cudaFree(index_dev);
-        return false;
-    }
-
-    // Copy reference and query data from the host to the device
-    err0 = cudaMemcpy2D(ref_dev,   ref_pitch_in_bytes,   ref,   ref_nb * size_of_float,   ref_nb * size_of_float,   dim, cudaMemcpyHostToDevice);
-    err1 = cudaMemcpy2D(query_dev, query_pitch_in_bytes, query, query_nb * size_of_float, query_nb * size_of_float, dim, cudaMemcpyHostToDevice);
-    if (err0 != cudaSuccess || err1 != cudaSuccess) {
-        printf("ERROR: Unable to copy data from host to device\n");
-        cudaFree(ref_dev);
-        cudaFree(query_dev);
-        cudaFree(dist_dev);
-        cudaFree(index_dev);
-        return false;
-    }
-
-    // Compute the squared Euclidean distances
-    dim3 block0(BLOCK_DIM, BLOCK_DIM, 1);
-    dim3 grid0(query_nb / BLOCK_DIM, ref_nb / BLOCK_DIM, 1);
-    if (query_nb % BLOCK_DIM != 0) grid0.x += 1;
-    if (ref_nb   % BLOCK_DIM != 0) grid0.y += 1;
-    compute_distances<<<grid0, block0>>>(ref_dev, ref_nb, ref_pitch, query_dev, query_nb, query_pitch, dim, dist_dev);
-    if (cudaGetLastError() != cudaSuccess) {
-        printf("ERROR: Unable to execute kernel\n");
-        cudaFree(ref_dev);
-        cudaFree(query_dev);
-        cudaFree(dist_dev);
-        cudaFree(index_dev);
-        return false;
-    }
-
-    // Sort the distances with their respective indexes
-    dim3 block1(256, 1, 1);
-    dim3 grid1(query_nb / 256, 1, 1);
-    if (query_nb % 256 != 0) grid1.x += 1;
-    modified_insertion_sort<<<grid1, block1>>>(dist_dev, dist_pitch, index_dev, index_pitch, query_nb, ref_nb, k);
-    if (cudaGetLastError() != cudaSuccess) {
-        printf("ERROR: Unable to execute kernel\n");
-        cudaFree(ref_dev);
-        cudaFree(query_dev);
-        cudaFree(dist_dev);
-        cudaFree(index_dev);
-        return false;
-    }
-
-    // Compute the square root of the k smallest distances
-    dim3 block2(16, 16, 1);
-    dim3 grid2(query_nb / 16, k / 16, 1);
-    if (query_nb % 16 != 0) grid2.x += 1;
-    if (k % 16 != 0)        grid2.y += 1;
-    compute_sqrt<<<grid2, block2>>>(dist_dev, query_nb, query_pitch, k);
-    if (cudaGetLastError() != cudaSuccess) {
-        printf("ERROR: Unable to execute kernel\n");
-        cudaFree(ref_dev);
-        cudaFree(query_dev);
-        cudaFree(dist_dev);
-        cudaFree(index_dev);
-        return false;
-    }
-
-    // Copy k smallest distances / indexes from the device to the host
-    err0 = cudaMemcpy2D(knn_dist,  query_nb * size_of_float, dist_dev,  dist_pitch_in_bytes,  query_nb * size_of_float, k, cudaMemcpyDeviceToHost);
-    err1 = cudaMemcpy2D(knn_index, query_nb * size_of_int,   index_dev, index_pitch_in_bytes, query_nb * size_of_int,   k, cudaMemcpyDeviceToHost);
-    if (err0 != cudaSuccess || err1 != cudaSuccess) {
-        printf("ERROR: Unable to copy data from device to host\n");
-        cudaFree(ref_dev);
-        cudaFree(query_dev);
-        cudaFree(dist_dev);
-        cudaFree(index_dev);
-        return false;
-    }
-
-    // Memory clean-up
-    cudaFree(ref_dev);
-    cudaFree(query_dev);
-    cudaFree(dist_dev);
-    cudaFree(index_dev);
-
-    return true;
 }
-
 
 bool knn_cuda_global(const float * ref,
                      int           ref_nb,

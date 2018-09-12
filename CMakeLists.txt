@@ -38,7 +38,7 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
 endif()
 
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CXX_CLANG_COMPILE_OPTIONS
@@ -51,6 +51,7 @@ set(CXX_GCC_COMPILE_OPTIONS
   "-march=native"
   "-Wall"
   "-Wno-unknown-pragmas"
+  "-D_GLIBCXX_USE_CXX11_ABI=1"
   )
 set(CUDA_CXX_COMPILE_OPTIONS
   "-march=native"
