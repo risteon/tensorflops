@@ -499,56 +499,13 @@ struct KNNFunctor<GPUDevice, Dtype> {
     dim3 grid2(query_nb / 16, k / 16, 1);
     if (query_nb % 16 != 0) grid2.x += 1;
     if (k % 16 != 0)        grid2.y += 1;
-    compute_sqrt<<<grid2, block2>>>(distances->flat<Dtype>().data(), query_nb, query_nb, k);
+    compute_sqrt<<<grid2, block2, 0, d.stream()>>>(distances->flat<Dtype>().data(), query_nb, query_nb, k);
 
     if (!d.ok()) {
       context->SetStatus(tensorflow::errors::Internal(
           "Failed launching MatrixAddGrad on GPU"));
     }
 
-//    // Compute the squared Euclidean distances
-//    dim3 block0(BLOCK_DIM, BLOCK_DIM, 1);
-//      dim3 grid0(query_nb / BLOCK_DIM, ref_nb / BLOCK_DIM, 1);
-//    if (query_nb % BLOCK_DIM != 0) grid0.x += 1;
-//    if (ref_nb   % BLOCK_DIM != 0) grid0.y += 1;
-//    compute_distances<<<grid0, block0>>>(ref_dev, ref_nb, ref_pitch, query_dev, query_nb, query_pitch, dim, dist_dev);
-//    if (cudaGetLastError() != cudaSuccess) {
-//        printf("ERROR: Unable to execute kernel\n");
-//        cudaFree(ref_dev);
-//        cudaFree(query_dev);
-//        cudaFree(dist_dev);
-//        cudaFree(index_dev);
-//        return false;
-//    }
-//
-//    // Sort the distances with their respective indexes
-//    dim3 block1(256, 1, 1);
-//    dim3 grid1(query_nb / 256, 1, 1);
-//    if (query_nb % 256 != 0) grid1.x += 1;
-//    modified_insertion_sort<<<grid1, block1>>>(dist_dev, dist_pitch, index_dev, index_pitch, query_nb, ref_nb, k);
-//    if (cudaGetLastError() != cudaSuccess) {
-//        printf("ERROR: Unable to execute kernel\n");
-//        cudaFree(ref_dev);
-//        cudaFree(query_dev);
-//        cudaFree(dist_dev);
-//        cudaFree(index_dev);
-//        return false;
-//    }
-//
-//    // Compute the square root of the k smallest distances
-//    dim3 block2(16, 16, 1);
-//    dim3 grid2(query_nb / 16, k / 16, 1);
-//    if (query_nb % 16 != 0) grid2.x += 1;
-//    if (k % 16 != 0)        grid2.y += 1;
-//    compute_sqrt<<<grid2, block2>>>(dist_dev, query_nb, query_pitch, k);
-//    if (cudaGetLastError() != cudaSuccess) {
-//        printf("ERROR: Unable to execute kernel\n");
-//        cudaFree(ref_dev);
-//        cudaFree(query_dev);
-//        cudaFree(dist_dev);
-//        cudaFree(index_dev);
-//        return false;
-//    }
   }
 };
 

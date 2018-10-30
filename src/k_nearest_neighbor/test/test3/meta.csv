@@ -1,0 +1,4 @@
+points 1000
+query 1000
+dim 64
+k 10
